@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+  schematypens="http://www.w3.org/2001/XMLSchema"?>
+
+<package format="3">
+  <name>openarm_learning</name>
+  <version>0.0.0</version>
+  <description>ROS 2 learning nodes and demos for OpenArm.</description>
+  <maintainer email="cjy@todo.todo">cjy</maintainer>
+  <license>Apache-2.0</license>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>openarm_description</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <depend>tf2_ros</depend>
+  <!-- 使用官方轨迹控制 Action。 -->
+  <depend>control_msgs</depend>
+
+  <!-- 使用 JointTrajectoryPoint 轨迹点消息。 -->
+  <depend>trajectory_msgs</depend>
+
+  <!-- 使用 Duration 时间消息。 -->
+  <depend>builtin_interfaces</depend>
+    <!-- 使用 MoveIt 的规划与执行 Action。 -->
+  <depend>moveit_msgs</depend>
+
+  <!-- 使用目标点与位姿消息。 -->
+  <depend>geometry_msgs</depend>
+
+  <!-- 使用球形位置约束。 -->
+  <depend>shape_msgs</depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
