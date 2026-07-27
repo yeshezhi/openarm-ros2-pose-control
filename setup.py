@@ -55,6 +55,8 @@ setup(
             "pose_goal_moveit_client = openarm_learning.pose_goal_moveit_client:main",
             # 注册自动判定目标是否到达的节点。
             "pose_goal_reach_monitor = openarm_learning.pose_goal_reach_monitor:main",
+            # 注册规划场景障碍物发布节点。
+            "planning_scene_obstacle = openarm_learning.planning_scene_obstacle:main",
         ],
     },
 )

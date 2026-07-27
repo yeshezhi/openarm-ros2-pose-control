@@ -69,7 +69,8 @@ openarm_learning/
 │   ├── moveit_pose_client.py             # 发送固定 6D 位姿目标给 MoveIt
 │   ├── pose_goal_listener.py             # 接收 PoseStamped 的通信练习
 │   ├── pose_goal_moveit_client.py        # 话题目标转 MoveIt 规划请求
-│   └── pose_goal_reach_monitor.py        # 基于 TF 的自动到达判定
+│   ├── pose_goal_reach_monitor.py        # 基于 TF 的自动到达判定
+│   ├── planning_scene_obstacle.py        # 通过 MoveIt 服务添加或删除虚拟碰撞物体
 ├── package.xml
 ├── setup.cfg
 └── setup.py
@@ -177,9 +178,22 @@ ros2 topic pub --once /openarm/target_pose geometry_msgs/msg/PoseStamped \
 判定结果：已到达目标
 ```
 
-## 9. 两种控制方式的区别
+## 9. MoveIt 规划场景与碰撞检测
 
-### 9.1 关节空间控制
+项目通过 `planning_scene_obstacle.py` 调用 MoveIt 的 `/apply_planning_scene` 服务，在 `world` 坐标系中添加或删除名为 `demo_box` 的虚拟盒子障碍物。
+
+实验采用控制变量对照：
+
+| 条件 | 右臂末端目标 `x=0.060 m` 的结果 |
+|---|---|
+| 无障碍物 | MoveIt 成功规划并执行 |
+| 添加并确认 `demo_box` 后 | MoveIt 无法找到可执行轨迹，机械臂保持在安全位置 |
+
+该实验说明 MoveIt 会将规划场景中的碰撞物体纳入 IK 与轨迹规划过程，拒绝可能发生碰撞的运动请求。
+
+## 10. 两种控制方式的区别
+
+### 10.1 关节空间控制
 
 通过 `right_arm_trajectory_client.py` 直接指定：
 
@@ -189,7 +203,7 @@ joint1, joint2, joint3, joint4, joint5, joint6, joint7
 
 此时开发者直接决定各关节目标角度，控制器按照给定轨迹执行。
 
-### 9.2 末端 6D 位姿控制
+### 10.2 末端 6D 位姿控制
 
 通过 `/openarm/target_pose` 指定：
 
@@ -203,7 +217,7 @@ x, y, z, qx, qy, qz, qw
 末端目标 → IK 求解关节角度 → 碰撞/约束检查 → 轨迹规划 → 控制器执行
 ```
 
-## 10. 后续计划
+## 11. 后续计划
 
 - 支持连续目标队列与任务取消。
 - 增加碰撞物体与碰撞场景规划。
@@ -211,6 +225,6 @@ x, y, z, qx, qy, qz, qw
 - 为项目增加自动化测试与持续集成。
 - 接入 OpenArm 真实硬件接口，完成 CAN 通信与真实机械臂控制前的安全验证。
 
-## 11. 简历描述参考
+## 12. 简历描述参考
 
 > 基于 ROS 2 Humble、MoveIt 2 和 ros2_control 搭建 OpenArm 双臂假硬件仿真系统；设计右臂末端 6D 位姿话题控制接口，实现 MoveIt 逆运动学求解、轨迹规划、控制器执行，以及基于 TF 的位置/姿态误差自动验收；实现 5 mm 位置容差与三个轴各 0.15 rad 姿态约束下的目标到达判定。
