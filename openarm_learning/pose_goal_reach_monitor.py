@@ -29,8 +29,8 @@ END_EFFECTOR_LINK = 'openarm_right_ee_base_link'
 # 定义允许的位置误差，单位为米。
 POSITION_TOLERANCE = 0.005
 
-# 定义允许的总姿态角误差，单位为弧度。
-ORIENTATION_TOLERANCE = 0.15
+# 使用三个独立轴各 0.15 rad 容差合成后的整体姿态误差上限。
+ORIENTATION_TOLERANCE = math.sqrt(3.0) * 0.15
 
 
 # 定义“目标位姿到达判定器”节点。

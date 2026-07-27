@@ -28,6 +28,11 @@ flowchart LR
     B --> H["pose_goal_reach_monitor"]
     G -->|"TF: world → 末端"| H
     H --> I["位置误差 + 姿态误差 + 到达判定"]
+    ## 演示截图
+
+右臂接收 `/openarm/target_pose` 的 6D 位姿目标后，MoveIt 完成逆运动学、轨迹规划与执行；系统再通过 TF 自动计算末端位置和姿态误差，并判定是否到达目标。
+
+![OpenArm 右臂 6D 位姿控制与自动到达判定](docs/rviz_pose_control.png)
 ```
 
 ## 3. 软件环境
@@ -156,7 +161,7 @@ ros2 topic pub --once /openarm/target_pose geometry_msgs/msg/PoseStamped \
 | 指标 | 阈值 |
 |---|---|
 | 位置误差 | `≤ 0.005 m`，即 5 mm |
-| 姿态误差 | `≤ 0.15 rad`，约 8.59° |
+| 姿态误差 | `≤ 0.26 rad`，约 14.9°（与 MoveIt 三个轴各 0.15 rad 的容差相匹配） |
 
 一次测试结果：
 
