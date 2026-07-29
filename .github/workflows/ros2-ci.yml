@@ -1,0 +1,68 @@
+# 定义 GitHub Actions 工作流名称。
+name: ROS 2 CI
+
+# 定义触发工作流的事件。
+on:
+  # 每次推送到 main 分支时运行。
+  push:
+    branches:
+      - main
+
+  # 向 main 分支创建或更新 Pull Request 时运行。
+  pull_request:
+    branches:
+      - main
+
+  # 允许在 GitHub 网页中手动运行。
+  workflow_dispatch:
+
+# 仅授予读取仓库内容的最小权限。
+permissions:
+  contents: read
+
+# 定义 CI 任务。
+jobs:
+  # ROS 2 构建与 Python 语法检查任务。
+  ros2-build-and-syntax-check:
+    # 使用 Ubuntu 22.04 运行器。
+    runs-on: ubuntu-22.04
+
+    # 在预装 ROS 2 Humble 的容器中执行。
+    container:
+      image: osrf/ros:humble-desktop
+
+    # 所有 run 命令均使用 Bash。
+    defaults:
+      run:
+        shell: bash
+
+    # CI 执行步骤。
+    steps:
+      # 下载当前 Git 仓库源码。
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # 安装 colcon 编译工具。
+      - name: Install colcon
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-colcon-common-extensions
+
+      # 编译自定义 ROS 2 Action 接口包。
+      - name: Build custom ROS 2 interface
+        run: |
+          source /opt/ros/humble/setup.bash
+          colcon build --base-paths packages --packages-select openarm_interfaces
+
+      # 验证 ExecutePose Action 已正确生成。
+      - name: Verify ExecutePose action
+        run: |
+          source /opt/ros/humble/setup.bash
+          source install/setup.bash
+          ros2 interface show openarm_interfaces/action/ExecutePose
+
+      # 检查 Python 节点是否存在基础语法错误。
+      - name: Check Python syntax
+        run: |
+          python3 -m compileall -q packages/openarm_learning/openarm_learning
