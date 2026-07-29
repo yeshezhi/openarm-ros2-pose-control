@@ -1,52 +1,69 @@
 # OpenArm ROS 2：基于 MoveIt 2 的右臂 6D 位姿控制、任务队列与自动验收
 
-> 一个基于 ROS 2 Humble、OpenArm、MoveIt 2 与 ros2_control 的仿真学习项目。  
-> 项目实现右臂末端 6D 位姿控制、逆运动学、轨迹规划、碰撞检测、目标到达判定，以及支持排队和精准取消的 ROS 2 Action 任务调度。
+> 一个基于 ROS 2 Humble、OpenArm、MoveIt 2 与 ros2_control 的机械臂仿真控制项目。  
+> 项目实现了右臂末端 6D 位姿控制、MoveIt 逆运动学与轨迹规划、碰撞场景管理、TF 闭环到达判定，以及支持 FIFO 队列和取消操作的自定义 ROS 2 Action 接口。
+
+![OpenArm 右臂 6D 位姿控制与到达判定](docs/rviz_pose_control.png)
+
+---
 
 ## 1. 项目能力
 
-- 使用 OpenArm v2.0 的 URDF/Xacro 机器人模型。
-- 在 `use_fake_hardware:=true` 假硬件环境中运行 OpenArm 双臂 MoveIt 仿真。
+- 使用 OpenArm v2.0 的 URDF/Xacro 模型搭建双臂仿真环境。
+- 在 `use_fake_hardware:=true` 的 `mock_components/GenericSystem` 假硬件环境中运行。
 - 支持右臂末端完整 6D 位姿目标：位置 `(x, y, z)` 与四元数朝向 `(qx, qy, qz, qw)`。
-- 通过 MoveIt 的 `/move_action` 完成逆运动学、轨迹规划与控制器执行。
-- 通过 `FollowJointTrajectory` 理解直接指定 7 个关节角度的关节空间控制。
-- 通过 TF 查询 `world → openarm_right_ee_base_link`，获取右臂末端实时位姿。
-- 自动计算目标与实际末端之间的位置误差、姿态误差，并基于容差判定是否到达目标。
-- 支持不可达目标与碰撞障碍物测试，理解 MoveIt 的规划失败反馈。
+- 通过 MoveIt 2 自动完成逆运动学、碰撞检测、轨迹规划与控制器执行。
+- 支持直接指定 7 个关节角度的关节空间轨迹控制。
+- 支持指定末端 6D 位姿、由 MoveIt 自动求解关节轨迹。
+- 通过 TF 查询 `world → openarm_right_ee_base_link`，获取末端实时位姿。
+- 自动计算目标与实际末端之间的位置误差、姿态误差，并判断是否到达。
 - 定义自定义 ROS 2 Action：`openarm_interfaces/action/ExecutePose`。
-- 实现队列式 Action 服务器：
-  - 最多缓存 5 条任务；
-  - FIFO 顺序执行；
-  - 实时反馈任务队列位置；
-  - 支持取消当前任务；
-  - 支持按任务 UUID 精确取消等待任务；
-  - 每条任务独立返回 `SUCCEEDED`、`CANCELED` 或 `ABORTED`。
+- 支持单任务执行、最多 5 条任务的 FIFO 队列、实时反馈和执行中取消。
+- 支持向 MoveIt Planning Scene 添加、查询和删除虚拟碰撞盒。
+- 已通过 GitHub Actions 完成基础 ROS 2 构建与接口检查。
+
+---
 
 ## 2. 系统架构
 
 ```mermaid
 flowchart LR
-    A["上层应用 / 命令行客户端"] -->|"ExecutePose Action Goal"| B["/openarm/queued_execute_pose"]
+    A["上层应用 / ROS 2 Action 客户端"] -->|"ExecutePose Goal"| B["/openarm/queued_execute_pose"]
     B --> C["queued_execute_pose_action_server"]
-    C -->|"FIFO 队列调度"| D["MoveIt /move_action"]
-    D -->|"IK + 轨迹规划 + 碰撞检测"| E["right_joint_trajectory_controller"]
+    C -->|"FIFO 任务调度"| D["MoveIt /move_action"]
+    D -->|"IK + 碰撞检测 + 轨迹规划"| E["right_joint_trajectory_controller"]
     E --> F["ros2_control 假硬件"]
     F --> G["OpenArm 右臂模型 / RViz"]
 
-    C -->|"Action Feedback"| A
-    C -->|"Action Result"| A
+    C -->|"Feedback / Result"| A
 
-    G -->|"TF: world → 末端"| H["pose_goal_reach_monitor"]
+    G -->|"TF: world → openarm_right_ee_base_link"| H["pose_goal_reach_monitor"]
     H --> I["位置误差 + 姿态误差 + 到达判定"]
 ```
 
-## 3. 演示截图
+控制链路：
 
-右臂接收末端 6D 位姿目标后，MoveIt 完成逆运动学、轨迹规划与执行；系统再通过 TF 自动计算末端位置和姿态误差，并判定是否到达目标。
+```text
+6D 位姿目标
+    ↓
+自定义 ExecutePose Action
+    ↓
+任务队列 / FIFO 调度 / 取消处理
+    ↓
+MoveIt 逆运动学、碰撞检测、轨迹规划
+    ↓
+ros2_control 轨迹控制器
+    ↓
+OpenArm 假硬件与 RViz 仿真
+    ↓
+TF 获取真实末端位姿
+    ↓
+位置与姿态误差闭环验收
+```
 
-![OpenArm 右臂 6D 位姿控制与自动到达判定](docs/rviz_pose_control.png)
+---
 
-## 4. 软件环境
+## 3. 软件环境
 
 | 项目 | 当前环境 |
 |---|---|
@@ -57,47 +74,55 @@ flowchart LR
 | 控制框架 | ros2_control |
 | 硬件模式 | `mock_components/GenericSystem` 假硬件 |
 | 可视化 | RViz 2 |
-| 图形远程连接 | NoMachine |
+| 远程图形桌面 | NoMachine |
 | 代码编辑 | VS Code Remote-SSH |
+| Python | Python 3.10 |
 
-> 当前项目是仿真与软件控制链路验证，尚未连接真实 CAN 总线或真实 OpenArm 硬件。
+> 当前项目仅验证软件控制链路与假硬件仿真，未连接真实 CAN 总线或真实 OpenArm 机械臂。
 
-## 5. 项目目录
+---
+
+## 4. 仓库结构
 
 ```text
 openarm-ros2-pose-control/
-├── README.md
+├── .github/
+│   └── workflows/
+│       └── ros2-ci.yml
 ├── docs/
 │   └── rviz_pose_control.png
-└── packages/
-    ├── openarm_interfaces/
-    │   ├── action/
-    │   │   └── ExecutePose.action
-    │   ├── CMakeLists.txt
-    │   └── package.xml
-    └── openarm_learning/
-        ├── launch/
-        │   ├── right_arm_pose_demo.launch.py
-        │   ├── topic_pose_control.launch.py
-        │   └── queued_pose_control.launch.py
-        ├── openarm_learning/
-        │   ├── joint_state_monitor.py
-        │   ├── end_effector_monitor.py
-        │   ├── pose_publisher.py
-        │   ├── right_arm_trajectory_client.py
-        │   ├── moveit_position_client.py
-        │   ├── moveit_pose_client.py
-        │   ├── pose_goal_moveit_client.py
-        │   ├── pose_goal_reach_monitor.py
-        │   ├── planning_scene_obstacle.py
-        │   ├── execute_pose_action_server.py
-        │   └── queued_execute_pose_action_server.py
-        ├── package.xml
-        ├── setup.cfg
-        └── setup.py
+├── packages/
+│   ├── openarm_interfaces/
+│   │   ├── action/
+│   │   │   └── ExecutePose.action
+│   │   ├── CMakeLists.txt
+│   │   └── package.xml
+│   └── openarm_learning/
+│       ├── launch/
+│       │   ├── right_arm_pose_demo.launch.py
+│       │   ├── topic_pose_control.launch.py
+│       │   └── queued_pose_control.launch.py
+│       ├── openarm_learning/
+│       │   ├── joint_state_monitor.py
+│       │   ├── end_effector_monitor.py
+│       │   ├── right_arm_trajectory_client.py
+│       │   ├── moveit_position_client.py
+│       │   ├── moveit_pose_client.py
+│       │   ├── pose_goal_moveit_client.py
+│       │   ├── pose_goal_reach_monitor.py
+│       │   ├── planning_scene_obstacle.py
+│       │   ├── execute_pose_action_server.py
+│       │   └── queued_execute_pose_action_server.py
+│       ├── package.xml
+│       ├── setup.py
+│       └── setup.cfg
+├── .gitignore
+└── README.md
 ```
 
-## 6. 编译项目
+---
+
+## 5. 编译项目
 
 ```bash
 # 进入 ROS 2 工作空间。
@@ -106,113 +131,158 @@ cd ~/robot_project/ros2_ws
 # 加载 ROS 2 Humble。
 source /opt/ros/humble/setup.bash
 
-# 编译本项目中的接口包与学习包。
+# 编译自定义 Action 接口包和学习控制包。
 colcon build --packages-select \
   openarm_interfaces \
   openarm_learning \
   --symlink-install
 
-# 加载当前工作空间。
+# 加载编译结果。
 source install/setup.bash
 ```
 
-验证：
+验证软件包：
 
 ```bash
-# 验证自定义接口包。
 ros2 pkg prefix openarm_interfaces
-
-# 验证学习包。
 ros2 pkg prefix openarm_learning
-
-# 查看自定义 Action 定义。
 ros2 interface show openarm_interfaces/action/ExecutePose
 ```
 
-## 7. 启动 OpenArm MoveIt 假硬件仿真
+---
+
+## 6. 启动 OpenArm MoveIt 假硬件仿真
 
 ```bash
-# 加载 ROS 2 Humble。
+cd ~/robot_project/ros2_ws
+
 source /opt/ros/humble/setup.bash
+source install/setup.bash
 
-# 加载当前工作空间。
-source ~/robot_project/ros2_ws/install/setup.bash
-
-# 启动 OpenArm 双臂假硬件、MoveIt 与 RViz。
 ros2 launch openarm_bimanual_moveit_config demo.launch.py \
   arm_type:=openarm_v2.0 \
   use_fake_hardware:=true
 ```
 
-该终端需要持续运行。
+启动后，可在 RViz 中选择 `right_arm` 规划组，观察右臂的规划与执行效果。
 
-## 8. 自定义 ExecutePose Action
+---
 
-### 8.1 Action 定义
+## 7. 两种控制方式
 
-`packages/openarm_interfaces/action/ExecutePose.action`
+### 7.1 关节空间控制
+
+关节空间控制直接指定右臂 7 个关节的目标角度：
 
 ```text
-# Goal：末端完整 6D 位姿目标。
+joint1, joint2, joint3, joint4, joint5, joint6, joint7
+```
+
+控制链路：
+
+```text
+目标关节角度
+    ↓
+FollowJointTrajectory
+    ↓
+right_joint_trajectory_controller
+    ↓
+ros2_control 假硬件
+```
+
+对应节点：
+
+```text
+right_arm_trajectory_client.py
+```
+
+适用于已经知道各关节目标角度的场景。
+
+### 7.2 末端 6D 位姿控制
+
+末端控制指定机械臂末端的目标位置和朝向：
+
+```text
+x, y, z, qx, qy, qz, qw
+```
+
+MoveIt 自动完成：
+
+```text
+末端目标位姿
+    ↓
+逆运动学 IK：求解 7 个关节角度
+    ↓
+碰撞检测与约束检查
+    ↓
+轨迹规划
+    ↓
+控制器执行
+```
+
+对应节点：
+
+```text
+moveit_position_client.py
+moveit_pose_client.py
+pose_goal_moveit_client.py
+```
+
+这种方式更符合实际机器人应用：上层程序描述“机械臂末端要去哪里”，MoveIt 决定“各关节如何运动”。
+
+---
+
+## 8. 自定义 Action 接口
+
+项目定义了完整的 ROS 2 Action：
+
+```text
+openarm_interfaces/action/ExecutePose
+```
+
+接口定义：
+
+```text
+# Goal：调用者发送的完整末端 6D 位姿目标。
 geometry_msgs/PoseStamped target_pose
 ---
-# Result：任务的最终结果。
+# Result：任务结束后返回的结果。
 bool success
 int32 error_code
 string message
 ---
-# Feedback：任务执行过程中的实时状态。
+# Feedback：执行过程中的实时反馈。
 uint32 queue_position
 string state
 ```
 
-### 8.2 Goal
-
-调用者发送：
-
-```text
-目标参考坐标系 + 末端位置 + 末端四元数朝向
-```
-
-| 字段 | 含义 | 单位 |
-|---|---|---|
-| `header.frame_id` | 目标参考坐标系，例如 `world` | 无 |
-| `position.x/y/z` | 末端目标位置 | 米 |
-| `orientation.x/y/z/w` | 末端目标四元数朝向 | 无单位 |
-
-### 8.3 Feedback
+字段说明：
 
 | 字段 | 含义 |
 |---|---|
-| `queue_position = 0` | 当前任务正在执行 |
-| `queue_position = 1` | 当前任务是队列中第一个等待任务 |
-| `queue_position = 2` | 当前任务是队列中第二个等待任务 |
-| `PLANNING_AND_EXECUTING` | MoveIt 正在规划或执行 |
-| `QUEUED_WAITING_FOR_TURN` | 任务正在等待前面的任务完成 |
-| `CANCELING_MOVEIT_TRAJECTORY` | 正在向 MoveIt 转发取消请求 |
+| `target_pose` | 目标末端完整 6D 位姿 |
+| `success` | 是否成功完成 |
+| `error_code` | MoveIt 或任务执行错误码 |
+| `message` | 结果说明 |
+| `queue_position` | 当前任务在队列中的位置 |
+| `state` | 当前任务状态 |
 
-### 8.4 Result
+---
 
-| 状态 | 含义 |
-|---|---|
-| `SUCCEEDED` | MoveIt 已成功规划并执行 |
-| `CANCELED` | 调用者取消了任务 |
-| `ABORTED` | MoveIt 无法完成规划或执行 |
-| `error_code = 1` | MoveIt 成功 |
-| `error_code = -2` | 本项目定义：任务被调用者取消 |
+## 9. 单个 6D 位姿任务执行
 
-## 9. 单任务 Action 控制
-
-启动单任务 Action 服务器：
+启动普通 Action 服务端：
 
 ```bash
+cd ~/robot_project/ros2_ws
+
 source /opt/ros/humble/setup.bash
-source ~/robot_project/ros2_ws/install/setup.bash
+source install/setup.bash
 
 ros2 run openarm_learning execute_pose_action_server
 ```
 
-发送一条右臂末端 6D 位姿任务：
+新开终端，发送目标：
 
 ```bash
 source /opt/ros/humble/setup.bash
@@ -224,117 +294,206 @@ ros2 action send_goal --feedback \
   "{target_pose: {header: {frame_id: 'world'}, pose: {position: {x: 0.030, y: -0.154, z: 0.262}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"
 ```
 
-单任务 Action 服务器一次只接受一条任务；当任务正在执行时，后续任务会被拒绝。
+正常反馈示例：
 
-## 10. 队列式 Action 控制
+```text
+state: BUILDING_MOVEIT_GOAL
+state: WAITING_MOVEIT_ACCEPTANCE
+state: PLANNING_AND_EXECUTING
 
-启动队列式 Action 服务器：
+Result:
+  success: true
+  error_code: 1
+  message: MoveIt 已成功规划并执行 6D 位姿任务
+
+Goal finished with status: SUCCEEDED
+```
+
+---
+
+## 10. FIFO 任务队列
+
+项目实现了最多容纳 5 条任务的 FIFO 队列 Action 服务端。
+
+启动队列服务端：
 
 ```bash
+cd ~/robot_project/ros2_ws
+
 source /opt/ros/humble/setup.bash
-source ~/robot_project/ros2_ws/install/setup.bash
+source install/setup.bash
 
 ros2 run openarm_learning queued_execute_pose_action_server
 ```
 
-队列式服务器名称：
+队列 Action 名称：
 
 ```text
 /openarm/queued_execute_pose
 ```
 
-它最多接受 5 条任务，包含当前正在执行的任务。
+后进入队列的任务会收到：
 
-发送一条队列任务：
+```text
+queue_position: 1
+state: QUEUED_WAITING_FOR_TURN
+```
+
+轮到该任务执行时：
+
+```text
+queue_position: 0
+state: PLANNING_AND_EXECUTING
+```
+
+调度过程：
+
+```text
+任务 1 正在执行
+任务 2 等待
+任务 3 等待
+    ↓
+任务 1 完成
+    ↓
+任务 2 自动开始
+    ↓
+任务 2 完成
+    ↓
+任务 3 自动开始
+```
+
+---
+
+## 11. Action 取消
+
+ROS 2 Humble 的命令行工具未直接提供 `ros2 action cancel` 子命令，因此本项目通过 Action 隐藏取消服务实现任务取消。
+
+取消当前活动任务：
 
 ```bash
 source /opt/ros/humble/setup.bash
 source ~/robot_project/ros2_ws/install/setup.bash
 
-ros2 action send_goal --feedback \
-  /openarm/queued_execute_pose \
-  openarm_interfaces/action/ExecutePose \
-  "{target_pose: {header: {frame_id: 'world'}, pose: {position: {x: 0.060, y: -0.154, z: 0.262}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"
-```
-
-若连续发送三条任务，预期反馈如下：
-
-```text
-任务 1：queue_position = 0 → PLANNING_AND_EXECUTING
-任务 2：queue_position = 1 → QUEUED_WAITING_FOR_TURN
-任务 3：queue_position = 2 → QUEUED_WAITING_FOR_TURN
-
-任务 1 完成后：
-任务 2：queue_position = 0 → PLANNING_AND_EXECUTING
-任务 3：queue_position = 1 → QUEUED_WAITING_FOR_TURN
-
-任务 2 完成后：
-任务 3：queue_position = 0 → PLANNING_AND_EXECUTING
-```
-
-这说明系统按照 FIFO，即先进先出顺序执行任务。
-
-## 11. Action 任务取消
-
-ROS 2 Humble 的 `ros2 action` 命令行工具没有 `cancel` 子命令，因此通过 Action 的隐藏取消服务完成取消。
-
-取消服务名称：
-
-```text
-/openarm/queued_execute_pose/_action/cancel_goal
-```
-
-取消当前所有活动任务：
-
-```bash
 ros2 service call \
   /openarm/queued_execute_pose/_action/cancel_goal \
   action_msgs/srv/CancelGoal \
   "{goal_info: {goal_id: {uuid: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, stamp: {sec: 0, nanosec: 0}}}"
 ```
 
-项目已验证：
+取消成功后的客户端结果示例：
 
-- 当前正在执行的任务可被取消；
-- 当前轨迹会停止；
-- Action 返回 `CANCELED`；
-- 返回 `success: false`；
-- 返回项目级取消码 `error_code: -2`；
-- 可以根据 Goal UUID 精确取消某一条等待任务，而不影响队列中的其他任务。
+```text
+state: CANCELING_MOVEIT_TRAJECTORY
 
-## 12. 基于 TF 的到达判定
+Result:
+  success: false
+  error_code: -2
+  message: 任务已由调用者取消
 
-`pose_goal_reach_monitor.py` 监听位姿目标，并通过 TF 查询：
+Goal finished with status: CANCELED
+```
+
+---
+
+## 12. TF 闭环到达判定
+
+项目通过 TF 获取右臂末端实际位姿：
 
 ```text
 world → openarm_right_ee_base_link
 ```
 
-计算：
+查询末端实际位姿：
 
-- 目标位置与实际位置的欧氏距离；
-- 目标朝向与实际朝向之间的最小夹角；
-- 是否满足位置与姿态容差。
+```bash
+source /opt/ros/humble/setup.bash
+source ~/robot_project/ros2_ws/install/setup.bash
 
-当前到达判定标准：
+ros2 run tf2_ros tf2_echo \
+  world \
+  openarm_right_ee_base_link
+```
+
+输出示例：
+
+```text
+Translation: [0.028, -0.158, 0.265]
+
+Rotation: in Quaternion (xyzw)
+[-0.042, -0.025, -0.027, 0.998]
+
+Rotation: in RPY (degree)
+[-4.729, -3.015, -2.930]
+```
+
+| 数据 | 含义 | 单位 |
+|---|---|---|
+| `Translation x/y/z` | 末端位置 | 米 |
+| `Quaternion x/y/z/w` | 末端朝向四元数 | 无单位 |
+| `RPY` | 末端朝向的欧拉角表示 | 度或弧度 |
+
+自动到达判定节点：
+
+```text
+pose_goal_reach_monitor.py
+```
+
+当前到达阈值：
 
 | 指标 | 阈值 |
 |---|---|
 | 位置误差 | `≤ 0.005 m`，即 5 mm |
 | 姿态误差 | `≤ 0.26 rad`，约 14.9° |
 
-姿态总误差阈值 `0.26 rad` 与 MoveIt 的三个轴分别 `0.15 rad` 的约束相匹配。
-
-一次成功测试结果：
+一次测试结果：
 
 ```text
 目标位置：x=0.030 m，y=-0.154 m，z=0.262 m
-实际位置误差：4.98 mm
-实际姿态误差：6.38°
+位置误差：4.98 mm
+姿态误差：6.38°
 判定结果：已到达目标
 ```
 
-## 13. MoveIt 规划场景与碰撞检测
+---
+
+## 13. Topic 位姿控制链路
+
+项目还实现了基于 ROS 2 Topic 的控制接口：
+
+```text
+/openarm/target_pose
+```
+
+消息类型：
+
+```text
+geometry_msgs/msg/PoseStamped
+```
+
+启动“话题目标 → MoveIt 执行 → TF 验收”：
+
+```bash
+cd ~/robot_project/ros2_ws
+
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+ros2 launch openarm_learning topic_pose_control.launch.py
+```
+
+发布一条末端 6D 位姿目标：
+
+```bash
+source /opt/ros/humble/setup.bash
+source ~/robot_project/ros2_ws/install/setup.bash
+
+ros2 topic pub --once /openarm/target_pose geometry_msgs/msg/PoseStamped \
+"{header: {frame_id: 'world'}, pose: {position: {x: 0.030, y: -0.154, z: 0.262}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}"
+```
+
+---
+
+## 14. Planning Scene 与碰撞场景
 
 项目通过 `planning_scene_obstacle.py` 调用 MoveIt 的：
 
@@ -342,67 +501,130 @@ world → openarm_right_ee_base_link
 /apply_planning_scene
 ```
 
-在 `world` 坐标系中添加或删除名为 `demo_box` 的虚拟盒子障碍物。
+向规划场景添加或删除名为 `demo_box` 的虚拟碰撞盒。
 
-控制变量实验结果：
+添加障碍物：
 
-| 条件 | 右臂末端目标 `x=0.060 m` 的结果 |
-|---|---|
-| 无障碍物 | MoveIt 成功规划并执行 |
-| 添加并确认 `demo_box` 后 | MoveIt 无法找到可执行轨迹，机械臂保持在安全位置 |
+```bash
+source /opt/ros/humble/setup.bash
+source ~/robot_project/ros2_ws/install/setup.bash
 
-该实验说明 MoveIt 会将规划场景中的碰撞物体纳入逆运动学与轨迹规划过程，拒绝可能发生碰撞的运动请求。
-
-## 14. 两种控制方式的区别
-
-### 14.1 关节空间控制
-
-通过 `right_arm_trajectory_client.py` 直接指定：
-
-```text
-joint1, joint2, joint3, joint4, joint5, joint6, joint7
+ros2 run openarm_learning planning_scene_obstacle --ros-args \
+  -p x:=0.060 \
+  -p y:=-0.154 \
+  -p z:=0.262 \
+  -p size_x:=0.040 \
+  -p size_y:=0.040 \
+  -p size_z:=0.040
 ```
 
-开发者直接决定每个关节的目标角度，控制器按照给定关节轨迹执行。
+删除障碍物：
 
-### 14.2 末端 6D 位姿控制
-
-通过 `ExecutePose Action` 或 `/openarm/target_pose` 指定：
-
-```text
-x, y, z, qx, qy, qz, qw
+```bash
+ros2 run openarm_learning planning_scene_obstacle --ros-args \
+  -p remove:=true
 ```
 
-MoveIt 自动完成：
+查询规划场景中是否存在 `demo_box`：
 
-```text
-末端目标
-→ IK 求解关节角度
-→ 碰撞与约束检查
-→ 轨迹规划
-→ ros2_control 控制器执行
+```bash
+ros2 service call /get_planning_scene \
+  moveit_msgs/srv/GetPlanningScene \
+  "{components: {components: 1023}}" \
+  | grep -A 20 -B 2 "demo_box"
 ```
 
-## 15. 当前项目学习成果
+当前已验证：
 
-- ROS 2 节点、话题、服务、TF、Launch 文件与工作空间管理。
-- URDF/Xacro 机器人模型、关节链与末端坐标系。
-- MoveIt 2 的逆运动学、位置目标、完整 6D 位姿目标和规划失败处理。
-- ros2_control 假硬件与 `FollowJointTrajectory` 关节轨迹控制。
-- MoveIt 规划场景与虚拟碰撞障碍物。
-- 自定义 ROS 2 Action 接口设计。
-- 多线程 Action 服务器、任务队列、反馈、Result 与取消机制。
-- 基于 Git 的项目版本管理与 GitHub 远程仓库协作。
+- MoveIt 能接收并保存虚拟障碍物；
+- RViz 的 `Scene Objects` 中可以显示 `demo_box`；
+- 当末端目标或可行轨迹与障碍物冲突时，MoveIt 会拒绝规划；
+- 自定义 Action 会返回失败状态，不会向控制器发送潜在碰撞轨迹；
+- 当障碍物不影响当前规划时，MoveIt 可继续生成并执行轨迹。
 
-## 16. 后续计划
+> 注意：当前项目已验证“规划场景更新”和“碰撞导致的规划失败”。  
+> 严格证明“机械臂绕过某个障碍物并到达同一目标”，需要基于完整机械臂各连杆的扫掠区域设计障碍物位置，并对比有无障碍物时的完整关节轨迹；该验证作为后续增强方向，当前不将其表述为已完成能力。
 
-- 增加单元测试、集成测试与 GitHub Actions 持续集成。
-- 为队列增加任务优先级、超时和重试策略。
-- 增加避障路径规划，而不只是验证碰撞导致的规划失败。
-- 支持动态障碍物与规划场景更新。
-- 接入 OpenArm 真实硬件接口，并在真实 CAN 通信前完成安全验证。
-- 增加用户图形界面或 Web 控制面板。
+---
 
-## 17. 简历描述参考
+## 15. GitHub Actions 持续集成
 
-> 基于 ROS 2 Humble、MoveIt 2 与 ros2_control 搭建 OpenArm 双臂假硬件仿真系统；实现右臂末端 6D 位姿控制、MoveIt 逆运动学求解、轨迹规划、碰撞检测和基于 TF 的位置/姿态误差自动验收。设计自定义 ExecutePose ROS 2 Action，并实现支持最多 5 条任务的 FIFO 队列、实时队列反馈、当前任务取消与指定任务 UUID 精确取消机制。
+仓库包含 GitHub Actions 工作流：
+
+```text
+.github/workflows/ros2-ci.yml
+```
+
+持续集成验证：
+
+- ROS 2 Humble 环境是否可正常启动；
+- `openarm_interfaces` 是否可以成功构建；
+- `ExecutePose.action` 接口是否能够被识别；
+- Python 节点是否通过基础语法检查；
+- 仓库结构是否符合当前 ROS 2 包组织方式。
+
+每次推送到 GitHub 后，可在仓库顶部的 **Actions** 页面查看构建状态。
+
+---
+
+## 16. 项目成果总结
+
+本项目完成了从高层末端目标到低层机械臂执行、再到闭环验收的完整软件链路：
+
+```text
+6D 位姿目标
+    ↓
+ROS 2 Topic 或自定义 Action
+    ↓
+FIFO 任务队列与取消管理
+    ↓
+MoveIt 逆运动学、碰撞检测、轨迹规划
+    ↓
+ros2_control 控制器执行
+    ↓
+OpenArm 假硬件与 RViz 可视化
+    ↓
+TF 获取真实末端位姿
+    ↓
+位置与姿态误差自动验收
+```
+
+目前已具备：
+
+- ROS 2 软件包与工作空间管理；
+- URDF/Xacro 机器人模型使用；
+- MoveIt 2 逆运动学与轨迹规划；
+- ros2_control 控制器链路；
+- TF 坐标变换与位姿监控；
+- 四元数、RPY 与 6D 位姿表达；
+- ROS 2 Topic、Service、Action 通信；
+- Action 实时反馈、FIFO 队列和取消；
+- Planning Scene 碰撞物体管理；
+- Git/GitHub 与 GitHub Actions 基础持续集成。
+
+---
+
+## 17. 项目局限
+
+- 当前使用 `mock_components/GenericSystem` 假硬件，不控制真实机械臂。
+- 尚未接入 CAN 总线、电机驱动器、真实传感器和急停安全链路。
+- 当前碰撞场景已能够阻止冲突规划，但严格的“绕障到达同一目标”对比实验尚未完成。
+- 当前任务队列采用 FIFO 策略，尚未实现优先级、超时和重试策略。
+- 当前目标输入来自命令行、Topic 或 Action，尚未集成视觉语言模型等高层决策模块。
+
+---
+
+## 18. 后续方向
+
+1. 完成严格的绕障轨迹对比实验，验证障碍物影响下的可行替代轨迹。
+2. 为队列增加任务优先级、超时、重试和失败恢复策略。
+3. 增加更多单元测试和集成测试，完善持续集成覆盖范围。
+4. 支持动态障碍物更新与规划场景实时刷新。
+5. 将视觉语言模型输出映射为安全的 OpenArm 位姿任务，实现高层决策与底层控制集成。
+6. 在完成安全验证后，接入真实 OpenArm 硬件与 CAN 通信。
+
+---
+
+## 19. 简历描述参考
+
+> 基于 ROS 2 Humble、MoveIt 2 和 ros2_control 搭建 OpenArm 双臂假硬件仿真控制系统；实现右臂末端 6D 位姿控制、逆运动学求解、轨迹规划、控制器执行，以及基于 TF 的位置/姿态闭环误差验收。在测试中达到 4.98 mm 位置误差与 6.38° 姿态误差。设计自定义 ROS 2 Action 接口，支持最多 5 个任务 FIFO 排队、实时反馈与执行中取消；集成 MoveIt Planning Scene，实现虚拟碰撞物体管理与冲突规划拒绝，并通过 GitHub Actions 完成基础持续集成验证。

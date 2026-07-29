@@ -47,6 +47,15 @@ class PlanningSceneObstacle(Node):
         # 声明是否执行删除操作的参数。
         self.declare_parameter('remove', False)
 
+        # 声明盒子在 x 方向上的尺寸参数，单位为米。
+        self.declare_parameter('size_x', 0.01)
+
+        # 声明盒子在 y 方向上的尺寸参数，单位为米。
+        self.declare_parameter('size_y', 0.10)
+
+        # 声明盒子在 z 方向上的尺寸参数，单位为米。
+        self.declare_parameter('size_z', 0.10)
+
         # 读取障碍物中心的 X 坐标。
         self.x = self.get_parameter('x').value
 
@@ -58,6 +67,15 @@ class PlanningSceneObstacle(Node):
 
         # 读取当前是否为删除模式。
         self.remove = self.get_parameter('remove').value
+
+        # 读取 x 方向的盒子尺寸，并转换为浮点数。
+        self.size_x = float(self.get_parameter('size_x').value)
+
+        # 读取 y 方向的盒子尺寸，并转换为浮点数。
+        self.size_y = float(self.get_parameter('size_y').value)
+
+        # 读取 z 方向的盒子尺寸，并转换为浮点数。
+        self.size_z = float(self.get_parameter('size_z').value)
 
         # 创建 MoveIt 规划场景服务客户端。
         self.apply_scene_client = self.create_client(
@@ -123,7 +141,7 @@ class PlanningSceneObstacle(Node):
             box.type = SolidPrimitive.BOX
 
             # 设置较薄的 X 方向盒子，避免初始位置与障碍物重叠。
-            box.dimensions = [0.01, 0.10, 0.10]
+            box.dimensions = [self.size_x, self.size_y, self.size_z]
 
             # 创建盒子在 world 坐标系中的位姿。
             box_pose = Pose()
