@@ -1,0 +1,11 @@
+# Goal：调用者发送的末端完整 6D 位姿目标。
+geometry_msgs/PoseStamped target_pose
+---
+# Result：任务结束后返回的最终结果。
+bool success
+int32 error_code
+string message
+---
+# Feedback：任务执行过程中持续返回的进度信息。
+uint32 queue_position
+string state

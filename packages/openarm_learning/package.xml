@@ -43,6 +43,11 @@
   <!-- 使用球形位置约束。 -->
   <depend>shape_msgs</depend>
 
+  <!-- 使用 Empty 消息接收取消命令。 -->
+  <depend>std_msgs</depend>
+
+  <depend>openarm_interfaces</depend>
+
   <export>
     <build_type>ament_python</build_type>
   </export>

@@ -57,6 +57,13 @@ setup(
             "pose_goal_reach_monitor = openarm_learning.pose_goal_reach_monitor:main",
             # 注册规划场景障碍物发布节点。
             "planning_scene_obstacle = openarm_learning.planning_scene_obstacle:main",
+            # 注册支持连续目标队列的 MoveIt 客户端。
+            "queued_pose_moveit_client = openarm_learning.queued_pose_moveit_client:main",
+
+            "execute_pose_action_server = openarm_learning.execute_pose_action_server:main",
+
+            "queued_execute_pose_action_server = openarm_learning.queued_execute_pose_action_server:main",
+
         ],
     },
 )

@@ -13,6 +13,8 @@
 - 通过 TF 查询 `world → openarm_right_ee_base_link`，获取末端实时位姿。
 - 自动计算目标与实际末端之间的位置误差、姿态误差，并基于容差输出任务是否完成。
 - 支持不可达目标测试，理解 MoveIt 的规划失败与错误码反馈。
+- 设计自定义 ExecutePose ROS 2 Action：Goal、Feedback、Result 与标准取消机制。
+- 实现队列式 ExecutePose Action 服务器：最多缓存 5 个任务，支持 FIFO 调度、实时队列位置反馈，以及指定任务 ID 的精准取消。
 
 ## 2. 系统架构
 
@@ -53,27 +55,36 @@ flowchart LR
 ## 5. 项目目录
 
 ```text
-openarm_learning/
+openarm-ros2-pose-control/
+├── README.md
 ├── docs/
-│   └── rviz_pose_control.png             # RViz 运行演示截图
-├── launch/
-│   ├── right_arm_pose_demo.launch.py     # 右臂姿态演示启动文件
-│   └── topic_pose_control.launch.py      # 一键启动目标执行器与到达判定器
-├── openarm_learning/
-│   ├── joint_state_monitor.py            # 读取并显示关节角度
-│   ├── pose_publisher.py                 # 发布演示用关节状态
-│   ├── end_effector_monitor.py           # 查询右臂末端 TF 位姿
-│   ├── target_reach_monitor.py           # 基于位置点的到达判定练习
-│   ├── right_arm_trajectory_client.py    # 直接发送 7 关节轨迹
-│   ├── moveit_position_client.py         # 发送仅位置目标给 MoveIt
-│   ├── moveit_pose_client.py             # 发送固定 6D 位姿目标给 MoveIt
-│   ├── pose_goal_listener.py             # 接收 PoseStamped 的通信练习
-│   ├── pose_goal_moveit_client.py        # 话题目标转 MoveIt 规划请求
-│   ├── pose_goal_reach_monitor.py        # 基于 TF 的自动到达判定
-│   ├── planning_scene_obstacle.py        # 通过 MoveIt 服务添加或删除虚拟碰撞物体
-├── package.xml
-├── setup.cfg
-└── setup.py
+│   └── rviz_pose_control.png
+└── packages/
+    ├── openarm_interfaces/
+    │   ├── action/
+    │   │   └── ExecutePose.action
+    │   ├── CMakeLists.txt
+    │   └── package.xml
+    └── openarm_learning/
+        ├── launch/
+        │   ├── right_arm_pose_demo.launch.py
+        │   ├── topic_pose_control.launch.py
+        │   └── queued_pose_control.launch.py
+        ├── openarm_learning/
+        │   ├── joint_state_monitor.py
+        │   ├── end_effector_monitor.py
+        │   ├── pose_publisher.py
+        │   ├── right_arm_trajectory_client.py
+        │   ├── moveit_position_client.py
+        │   ├── moveit_pose_client.py
+        │   ├── pose_goal_moveit_client.py
+        │   ├── pose_goal_reach_monitor.py
+        │   ├── planning_scene_obstacle.py
+        │   ├── execute_pose_action_server.py
+        │   └── queued_execute_pose_action_server.py
+        ├── package.xml
+        ├── setup.cfg
+        └── setup.py
 ```
 
 ## 6. 启动方式
