@@ -1,23 +1,50 @@
 <?xml version="1.0"?>
-<package format="3">
-  <name>openarm_interfaces</name>
-  <version>0.0.0</version>
-  <description>Custom ROS 2 action interfaces for OpenArm tasks.</description>
 
+<!-- 声明 ROS 2 package.xml 格式版本。 -->
+<package format="3">
+
+  <!-- 声明软件包名称。 -->
+  <name>openarm_interfaces</name>
+
+  <!-- 声明当前软件包版本。 -->
+  <version>0.0.0</version>
+
+  <!-- 描述该包提供的接口能力。 -->
+  <description>Custom ROS 2 action and message interfaces for OpenArm tasks.</description>
+
+  <!-- 声明维护者信息。 -->
   <maintainer email="127087226+yeshezhi@users.noreply.github.com">yeshezhi</maintainer>
+
+  <!-- 声明开源许可证。 -->
   <license>Apache-2.0</license>
 
+  <!-- 声明 ament CMake 构建工具依赖。 -->
   <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- 声明 ROS 2 接口生成工具依赖。 -->
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
 
+  <!-- 声明 Pose、PoseStamped 等几何消息依赖。 -->
   <depend>geometry_msgs</depend>
 
+  <!-- 声明 Header 消息依赖。 -->
+  <depend>std_msgs</depend>
+
+  <!-- 声明 Image 消息依赖。 -->
+  <depend>sensor_msgs</depend>
+
+  <!-- 声明生成接口在运行期所需的依赖。 -->
   <exec_depend>rosidl_default_runtime</exec_depend>
 
+  <!-- 声明此包属于 ROS 2 接口包组。 -->
   <member_of_group>rosidl_interface_packages</member_of_group>
 
+  <!-- 导出构建类型信息。 -->
   <export>
-    <!-- 声明这是一个 ament_cmake 构建类型的 ROS 2 包。 -->
+
+    <!-- 声明使用 ament_cmake 构建。 -->
     <build_type>ament_cmake</build_type>
+
   </export>
+
 </package>
