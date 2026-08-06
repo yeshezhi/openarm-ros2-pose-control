@@ -27,7 +27,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   # 新增的 OpenArm 结构化观测消息。
   "msg/OpenArmObservation.msg"
 
-  
   "msg/OpenArmExecutionEvent.msg"
 
   # 声明上述接口文件中使用到的消息依赖。
