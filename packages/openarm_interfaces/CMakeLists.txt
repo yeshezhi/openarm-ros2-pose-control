@@ -29,6 +29,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
   "msg/OpenArmExecutionEvent.msg"
 
+  # 新增的真实 LingBot 实时影子推理结果消息。
+  "msg/LingBotShadowResult.msg"
+
   # 声明上述接口文件中使用到的消息依赖。
   DEPENDENCIES
     geometry_msgs
