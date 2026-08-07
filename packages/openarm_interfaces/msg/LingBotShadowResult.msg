@@ -13,6 +13,9 @@ string mode
 # 是否允许模型动作进入 OpenArm 控制链路；当前必须始终为 false。
 bool control_enabled
 
+# 本次真实模型实际使用的 14 维 RoboTwin 临时兼容状态。
+float64[14] robotwin_compatible_state
+
 # LingBot 返回的动作块时间步数，例如 3。
 uint32 action_steps
 
